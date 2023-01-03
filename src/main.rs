@@ -67,6 +67,16 @@ mod app {
         )
     }
 
+    // Optional idle, can be removed if not needed.
+    #[idle]
+    fn idle(_: idle::Context) -> ! {
+        defmt::info!("idle");
+
+        loop {
+            continue;
+        }
+    }
+
     #[task]
     fn task1(_cx: task1::Context) {
         defmt::info!("Hello from task1!");
