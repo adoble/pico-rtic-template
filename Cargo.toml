@@ -22,6 +22,10 @@ rp-pico = "0.5"
 # rp2040-hal = { version="0.6", features=["rt"] }
 # rp2040-boot2 = "0.2"
 
+# For linking
+rp2040-boot2 = { version = "0.2.1" }
+
+
 # cargo build/run
 [profile.dev]
 codegen-units = 1
