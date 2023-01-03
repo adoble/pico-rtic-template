@@ -8,20 +8,67 @@ use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::OutputPin;
 use panic_probe as _;
-use rp_pico::entry;
+//use rp_pico::entry;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
-use rp_pico::hal::{
-    clocks::{init_clocks_and_plls, Clock},
-    pac,
-    sio::Sio,
-    watchdog::Watchdog,
-};
+// use rp_pico::hal::{
+//     clocks::{init_clocks_and_plls, Clock},
+//     pac,
+//     sio::Sio,
+//     watchdog::Watchdog,
+// };
 
+#[rtic::app(
+    device = rp_pico::hal::pac, // TODO: Replace `some_hal::pac` with the path to the PAC
+    dispatchers = [TIMER_IRQ_1] // TODO: Replace the `FreeInterrupt1, ...` with free interrupt vectors if software tasks are used
+)]
+mod app {
+
+    use rp_pico::hal::{
+        clocks::{init_clocks_and_plls, Clock},
+        pac,
+        sio::Sio,
+        watchdog::Watchdog,
+    };
+
+    // Shared resources go here
+    #[shared]
+    struct Shared {
+        // TODO: Add resources
+    }
+
+    // Local resources go here
+    #[local]
+    struct Local {
+        // TODO: Add resources
+    }
+
+    #[init]
+    fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
+        defmt::info!("init");
+
+        //task1::spawn().ok();
+
+        // Setup the monotonic timer
+        (
+            Shared {
+            // Initialization of shared resources go here
+        },
+            Local {
+            // Initialization of local resources go here
+        },
+            init::Monotonics(
+            // Initialization of optional monotonic timers go here
+        ),
+        )
+    }
+}
+
+/*
 #[entry]
 fn main() -> ! {
     info!("Program start");
@@ -68,5 +115,5 @@ fn main() -> ! {
         delay.delay_ms(interval);
     }
 }
-
+*/
 // End of file
