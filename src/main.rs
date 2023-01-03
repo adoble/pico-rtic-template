@@ -48,10 +48,10 @@ mod app {
     }
 
     #[init]
-    fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
+    fn init(_cx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
-        //task1::spawn().ok();
+        task1::spawn().ok();
 
         // Setup the monotonic timer
         (
@@ -65,6 +65,11 @@ mod app {
             // Initialization of optional monotonic timers go here
         ),
         )
+    }
+
+    #[task]
+    fn task1(_cx: task1::Context) {
+        defmt::info!("Hello from task1!");
     }
 }
 
