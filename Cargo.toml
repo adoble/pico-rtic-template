@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "pico-probe-run"
+name = "pico-rtic-template"
 version = "0.1.0"
 
 [dependencies]
