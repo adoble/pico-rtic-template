@@ -1,7 +1,7 @@
 # Project template for pico running rtic
 
 
-This template is intended as a starting point for developing rp-pico based application using the [rtic](https://crates.io/crates/cortex-m-rtic) crate.
+This template is intended as a starting point for developing rp-pico based application using the [rtic](https://crates.io/crates/cortex-m-rtic) crate. It is based on [this rp2040 template](https://github.com/rp-rs/rp2040-project-template) and [this rtic example](https://github.com/rtic-rs/rtic-examples/blob/master/rtic_v1/rp-pico_local_initilzd_resources/src/main.rs).
 
 It does the following:
 - Blinks the rp-pico on-board led
