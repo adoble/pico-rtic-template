@@ -8,19 +8,6 @@ use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::OutputPin;
 use panic_probe as _;
-//use rp_pico::entry;
-
-// Provide an alias for our BSP so we can switch targets quickly.
-// Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-//use rp_pico as bsp;
-// use sparkfun_pro_micro_rp2040 as bsp;
-
-// use rp_pico::hal::{
-//     clocks::{init_clocks_and_plls, Clock},
-//     pac,
-//     sio::Sio,
-//     watchdog::Watchdog,
-// };
 
 #[rtic::app(
     device = rp_pico::hal::pac, // TODO: Replace `some_hal::pac` with the path to the PAC
@@ -35,6 +22,22 @@ mod app {
         watchdog::Watchdog,
     };
 
+    use rp_pico::XOSC_CRYSTAL_FREQ;
+
+    use rp2040_monotonic::{
+        fugit::Duration,
+        fugit::RateExtU32, // For .kHz() conversion funcs
+        Rp2040Monotonic,
+    };
+
+    #[monotonic(binds = TIMER_IRQ_0, default = true)]
+    type Rp2040Mono = Rp2040Monotonic;
+
+    // Tiner constants
+    const MONO_NUM: u32 = 1;
+    const MONO_DENOM: u32 = 1000000;
+    const ONE_SEC_TICKS: u64 = 1000000;
+
     // Shared resources go here
     #[shared]
     struct Shared {
@@ -44,26 +47,41 @@ mod app {
     // Local resources go here
     #[local]
     struct Local {
-        // TODO: Add resources
+        led_state: bool,
     }
 
     #[init]
-    fn init(_cx: init::Context) -> (Shared, Local, init::Monotonics) {
+    fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
-        task1::spawn().ok();
+        let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
+        let clocks = init_clocks_and_plls(
+            XOSC_CRYSTAL_FREQ,
+            ctx.device.XOSC,
+            ctx.device.CLOCKS,
+            ctx.device.PLL_SYS,
+            ctx.device.PLL_USB,
+            &mut ctx.device.RESETS,
+            &mut watchdog,
+        )
+        .ok()
+        .unwrap();
+
+        // Spawn the led toggle task
+        toggle_task::spawn().ok();
 
         // Setup the monotonic timer
+        let mono = Rp2040Monotonic::new(ctx.device.TIMER);
+
         (
             Shared {
             // Initialization of shared resources go here
         },
             Local {
-            // Initialization of local resources go here
-        },
-            init::Monotonics(
-            // Initialization of optional monotonic timers go here
-        ),
+                // Initialization of local resources go here
+                led_state: false,
+            },
+            init::Monotonics(mono),
         )
     }
 
@@ -77,58 +95,21 @@ mod app {
         }
     }
 
-    #[task]
-    fn task1(_cx: task1::Context) {
-        defmt::info!("Hello from task1!");
+    #[task(local = [led_state])]
+    fn toggle_task(ctx: toggle_task::Context) {
+        defmt::info!("Toogle task");
+
+        if *ctx.local.led_state {
+            defmt::info!("on");
+            *ctx.local.led_state = false;
+        } else {
+            defmt::info!("off");
+            *ctx.local.led_state = true;
+        }
+        // Re-spawn this task after 1 second
+        let one_second = Duration::<u64, MONO_NUM, MONO_DENOM>::from_ticks(ONE_SEC_TICKS);
+        toggle_task::spawn_after(one_second).unwrap();
     }
 }
 
-/*
-#[entry]
-fn main() -> ! {
-    info!("Program start");
-
-    let mut pac = pac::Peripherals::take().unwrap();
-    let core = pac::CorePeripherals::take().unwrap();
-    let mut watchdog = Watchdog::new(pac.WATCHDOG);
-    let sio = Sio::new(pac.SIO);
-
-    // External high-speed crystal on the pico board is 12Mhz
-    let external_xtal_freq_hz = 12_000_000u32;
-    let clocks = init_clocks_and_plls(
-        external_xtal_freq_hz,
-        pac.XOSC,
-        pac.CLOCKS,
-        pac.PLL_SYS,
-        pac.PLL_USB,
-        &mut pac.RESETS,
-        &mut watchdog,
-    )
-    .ok()
-    .unwrap();
-
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
-
-    let pins = rp_pico::Pins::new(
-        pac.IO_BANK0,
-        pac.PADS_BANK0,
-        sio.gpio_bank0,
-        &mut pac.RESETS,
-    );
-
-    let mut led_pin = pins.led.into_push_pull_output();
-
-    let interval = 500;
-    println!("Interval: {} ms", interval);
-
-    loop {
-        info!("on!");
-        led_pin.set_high().unwrap();
-        delay.delay_ms(interval);
-        info!("off!");
-        led_pin.set_low().unwrap();
-        delay.delay_ms(interval);
-    }
-}
-*/
 // End of file
