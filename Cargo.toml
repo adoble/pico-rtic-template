@@ -25,8 +25,9 @@ rp-pico = "0.5"
 # For linking
 rp2040-boot2 = { version = "0.2.1" }
 
-# RTIC
+# Required for RTIC
 cortex-m-rtic = "1.0.0"
+rp2040-monotonic = "1.2.0"
 
 
 # cargo build/run
