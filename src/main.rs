@@ -4,36 +4,30 @@
 #![no_std]
 #![no_main]
 
-use defmt::*;
+//use defmt::*;
+use defmt as _;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::OutputPin;
+//use embedded_hal::digital::v2::OutputPin;
 use panic_probe as _;
 
 #[rtic::app(
-    device = rp_pico::hal::pac, // TODO: Replace `some_hal::pac` with the path to the PAC
-    dispatchers = [TIMER_IRQ_1] // TODO: Replace the `FreeInterrupt1, ...` with free interrupt vectors if software tasks are used
+    device = rp_pico::hal::pac, 
+    dispatchers = [TIMER_IRQ_1] 
 )]
 mod app {
 
-    use rp_pico::hal::{
-        clocks::{init_clocks_and_plls, Clock},
-        pac,
-        sio::Sio,
-        watchdog::Watchdog,
-    };
+    //use core::pin::Pin;
 
-    use rp_pico::XOSC_CRYSTAL_FREQ;
+    use embedded_hal::digital::v2::OutputPin;
 
-    use rp2040_monotonic::{
-        fugit::Duration,
-        fugit::RateExtU32, // For .kHz() conversion funcs
-        Rp2040Monotonic,
-    };
+    use rp_pico::hal::{gpio, gpio::pin::bank0::Gpio25, gpio::pin::PushPullOutput, sio::Sio};
+
+    use rp2040_monotonic::{fugit::Duration, Rp2040Monotonic};
 
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
     type Rp2040Mono = Rp2040Monotonic;
 
-    // Tiner constants
+    // Timer constants
     const MONO_NUM: u32 = 1;
     const MONO_DENOM: u32 = 1000000;
     const ONE_SEC_TICKS: u64 = 1000000;
@@ -48,24 +42,25 @@ mod app {
     #[local]
     struct Local {
         led_state: bool,
+        led_pin: gpio::Pin<Gpio25, PushPullOutput>,
+        // TODO: Use own resources 
     }
 
     #[init]
     fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
-        let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
-        let clocks = init_clocks_and_plls(
-            XOSC_CRYSTAL_FREQ,
-            ctx.device.XOSC,
-            ctx.device.CLOCKS,
-            ctx.device.PLL_SYS,
-            ctx.device.PLL_USB,
+        // Set up the led pin
+        let sio = Sio::new(ctx.device.SIO);
+        let pins = rp_pico::Pins::new(
+            ctx.device.IO_BANK0,
+            ctx.device.PADS_BANK0,
+            sio.gpio_bank0,
             &mut ctx.device.RESETS,
-            &mut watchdog,
-        )
-        .ok()
-        .unwrap();
+        );
+
+        let mut led_pin = pins.led.into_push_pull_output();
+        led_pin.set_low().unwrap();
 
         // Setup the monotonic timer
         let mono = Rp2040Monotonic::new(ctx.device.TIMER);
@@ -80,6 +75,7 @@ mod app {
             Local {
                 // Initialization of local resources go here
                 led_state: false,
+                led_pin: led_pin,
             },
             init::Monotonics(mono),
         )
@@ -95,15 +91,19 @@ mod app {
         }
     }
 
-    #[task(local = [led_state])]
+    // Toggle the led based on a local state
+    #[task(local = [led_state, led_pin])]
     fn toggle_task(ctx: toggle_task::Context) {
         if *ctx.local.led_state {
             defmt::info!("led on");
             *ctx.local.led_state = false;
+            ctx.local.led_pin.set_high().unwrap();
         } else {
             defmt::info!("led off");
             *ctx.local.led_state = true;
+            ctx.local.led_pin.set_low().unwrap();
         }
+
         // Re-spawn this task after 1 second
         let one_second = Duration::<u64, MONO_NUM, MONO_DENOM>::from_ticks(ONE_SEC_TICKS);
         toggle_task::spawn_after(one_second).unwrap();
