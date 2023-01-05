@@ -67,11 +67,11 @@ mod app {
         .ok()
         .unwrap();
 
-        // Spawn the led toggle task
-        toggle_task::spawn().ok();
-
         // Setup the monotonic timer
         let mono = Rp2040Monotonic::new(ctx.device.TIMER);
+
+        // Spawn the led toggle task
+        toggle_task::spawn().ok();
 
         (
             Shared {
@@ -97,13 +97,11 @@ mod app {
 
     #[task(local = [led_state])]
     fn toggle_task(ctx: toggle_task::Context) {
-        defmt::info!("Toogle task");
-
         if *ctx.local.led_state {
-            defmt::info!("on");
+            defmt::info!("led on");
             *ctx.local.led_state = false;
         } else {
-            defmt::info!("off");
+            defmt::info!("led off");
             *ctx.local.led_state = true;
         }
         // Re-spawn this task after 1 second
