@@ -20,17 +20,18 @@ mod app {
 
     use embedded_hal::digital::v2::OutputPin;
 
-    use rp_pico::hal::{gpio, gpio::pin::bank0::Gpio25, gpio::pin::PushPullOutput, sio::Sio};
+    use rp_pico::hal::{clocks, watchdog::Watchdog, gpio, gpio::pin::bank0::Gpio25, gpio::pin::PushPullOutput, sio::Sio};
+    use rp_pico::XOSC_CRYSTAL_FREQ;
 
-    use rp2040_monotonic::{fugit::Duration, Rp2040Monotonic};
+    use rp2040_monotonic::{fugit::ExtU64,  Rp2040Monotonic};
 
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
     type Rp2040Mono = Rp2040Monotonic;
 
     // Timer constants
-    const MONO_NUM: u32 = 1;
-    const MONO_DENOM: u32 = 1000000;
-    const ONE_SEC_TICKS: u64 = 1000000;
+    // const MONO_NUM: u32 = 1;
+    // const MONO_DENOM: u32 = 1000000;
+    // const ONE_SEC_TICKS: u64 = 1000000;
 
     // Shared resources go here
     #[shared]
@@ -49,6 +50,20 @@ mod app {
     #[init]
     fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
+
+        // Setup the clock. 
+        let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
+        let _clocks = clocks::init_clocks_and_plls(
+            XOSC_CRYSTAL_FREQ,
+            ctx.device.XOSC,
+            ctx.device.CLOCKS,
+            ctx.device.PLL_SYS,
+            ctx.device.PLL_USB,
+            &mut ctx.device.RESETS,
+            &mut watchdog,
+        )
+        .ok()
+        .unwrap();
 
         // Set up the led pin
         let sio = Sio::new(ctx.device.SIO);
@@ -96,17 +111,18 @@ mod app {
     fn toggle_task(ctx: toggle_task::Context) {
         if *ctx.local.led_state {
             defmt::info!("led on");
-            *ctx.local.led_state = false;
             ctx.local.led_pin.set_high().unwrap();
+            *ctx.local.led_state = false;
         } else {
             defmt::info!("led off");
-            *ctx.local.led_state = true;
             ctx.local.led_pin.set_low().unwrap();
+            *ctx.local.led_state = true;
         }
 
-        // Re-spawn this task after 1 second
-        let one_second = Duration::<u64, MONO_NUM, MONO_DENOM>::from_ticks(ONE_SEC_TICKS);
-        toggle_task::spawn_after(one_second).unwrap();
+        // Re-spawn this task after 1000 milliseconds
+        let duration: u64 = 1000;
+        toggle_task::spawn_after(duration.millis()).unwrap();
+        
     }
 }
 
