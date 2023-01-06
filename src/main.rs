@@ -86,7 +86,7 @@ mod app {
             Local {
                 // Initialization of local resources go here
                 led_state: false,
-                led_pin: led_pin,
+                led_pin,
             },
             init::Monotonics(mono),
         )
