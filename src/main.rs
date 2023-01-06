@@ -1,18 +1,16 @@
-//! Blinks the LED on a Pico board
+//! Blinks the LED on a Pico board using the RTIC framework.
 //!
-//! This will blink an LED attached to GP25, which is the pin the Pico uses for the on-board LED.
+//! This will blink an LED attached to GPIO25, which is the pin the Pico uses for the on-board LED.
 #![no_std]
 #![no_main]
 
 //use defmt::*;
 use defmt as _;
 use defmt_rtt as _;
-//use embedded_hal::digital::v2::OutputPin;
 use panic_probe as _;
 
 #[rtic::app(
-    device = rp_pico::hal::pac, 
-    dispatchers = [TIMER_IRQ_1] 
+    device = rp_pico::hal::pac, dispatchers = [TIMER_IRQ_1]
 )]
 mod app {
 
@@ -20,18 +18,16 @@ mod app {
 
     use embedded_hal::digital::v2::OutputPin;
 
-    use rp_pico::hal::{clocks, watchdog::Watchdog, gpio, gpio::pin::bank0::Gpio25, gpio::pin::PushPullOutput, sio::Sio};
+    use rp_pico::hal::{
+        clocks, gpio, gpio::pin::bank0::Gpio25, gpio::pin::PushPullOutput, sio::Sio,
+        watchdog::Watchdog,
+    };
     use rp_pico::XOSC_CRYSTAL_FREQ;
 
-    use rp2040_monotonic::{fugit::ExtU64,  Rp2040Monotonic};
+    use rp2040_monotonic::{fugit::ExtU64, Rp2040Monotonic};
 
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
     type Rp2040Mono = Rp2040Monotonic;
-
-    // Timer constants
-    // const MONO_NUM: u32 = 1;
-    // const MONO_DENOM: u32 = 1000000;
-    // const ONE_SEC_TICKS: u64 = 1000000;
 
     // Shared resources go here
     #[shared]
@@ -44,14 +40,14 @@ mod app {
     struct Local {
         led_state: bool,
         led_pin: gpio::Pin<Gpio25, PushPullOutput>,
-        // TODO: Use own resources 
+        // TODO: Use own resources
     }
 
     #[init]
     fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
-        // Setup the clock. 
+        // Setup the clock.
         let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
         let _clocks = clocks::init_clocks_and_plls(
             XOSC_CRYSTAL_FREQ,
@@ -122,7 +118,6 @@ mod app {
         // Re-spawn this task after 1000 milliseconds
         let duration: u64 = 1000;
         toggle_task::spawn_after(duration.millis()).unwrap();
-        
     }
 }
 
