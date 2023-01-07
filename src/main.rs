@@ -18,9 +18,10 @@ mod app {
 
     use embedded_hal::digital::v2::OutputPin;
 
+    use rp_pico::hal::gpio::PullDown;
     use rp_pico::hal::{
-        clocks, gpio, gpio::pin::bank0::Gpio25, gpio::pin::PushPullOutput, sio::Sio,
-        watchdog::Watchdog,
+        clocks, gpio, gpio::pin::bank0::Gpio17, gpio::pin::bank0::Gpio25, gpio::pin::Disabled,
+        gpio::pin::PushPullOutput, sio::Sio, watchdog::Watchdog,
     };
     use rp_pico::XOSC_CRYSTAL_FREQ;
 
@@ -40,6 +41,7 @@ mod app {
     struct Local {
         led_state: bool,
         led_pin: gpio::Pin<Gpio25, PushPullOutput>,
+        button_pin: gpio::Pin<Gpio17, Disabled<PullDown>>,
         // TODO: Use own resources
     }
 
@@ -73,6 +75,11 @@ mod app {
         let mut led_pin = pins.led.into_push_pull_output();
         led_pin.set_low().unwrap();
 
+        // Setup an interrupt om pin 16 to register button presses
+        let button_pin = pins.gpio17;
+
+        button_pin.set_interrupt_enabled(gpio::Interrupt::EdgeLow, true); // ??? Does this work?
+
         // Setup the monotonic timer
         let mono = Rp2040Monotonic::new(ctx.device.TIMER);
 
@@ -87,6 +94,7 @@ mod app {
                 // Initialization of local resources go here
                 led_state: false,
                 led_pin,
+                button_pin,
             },
             init::Monotonics(mono),
         )
@@ -118,6 +126,17 @@ mod app {
         // Re-spawn this task after 1000 milliseconds
         let duration: u64 = 1000;
         toggle_task::spawn_after(duration.millis()).unwrap();
+    }
+
+    #[task(binds = IO_IRQ_BANK0, local = [button_pin])]
+    fn button_irq(ctx: button_irq::Context) {
+        defmt::info!("Button pressed");
+
+        ctx.local
+            .button_pin
+            .clear_interrupt(gpio::Interrupt::EdgeLow);
+
+        // TODO need to add debounce
     }
 }
 
