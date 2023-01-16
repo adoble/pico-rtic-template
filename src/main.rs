@@ -1,6 +1,15 @@
-//! Blinks the LED on a Pico board using the RTIC framework.
+//! This template is intended as a starting point for developing rp-pico based application using the
+//! [cortex-m-rtic](https://crates.io/crates/cortex-m-rtic) crate. It is based on
+//! [this rp2040 template](https://github.com/rp-rs/rp2040-project-template) and
+//! [this rtic example](https://github.com/rtic-rs/rtic-examples/blob/master/rtic_v1/rp-pico_local_initilzd_resources/src/main.rs).
 //!
-//! This will blink an LED attached to GPIO25, which is the pin the Pico uses for the on-board LED.
+//! It does the following:
+//! - Blinks the rp-pico on-board led (GPIO 25) using a timer
+//! - Processes a interrupt when GPIO 17 is pulled low (e.g with a push button)
+
+//! It includes all of the `knurling-rs` tooling as showcased in https://github.com/knurling-rs/app-template
+//! (`defmt`, `defmt-rtt`, `panic-probe`, `flip-link`) to make development as easy as possible.
+
 #![no_std]
 #![no_main]
 
@@ -14,13 +23,11 @@ use panic_probe as _;
 )]
 mod app {
 
-    //use core::pin::Pin;
+    use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-    use embedded_hal::digital::v2::OutputPin;
-
-    use rp_pico::hal::gpio::PullDown;
+    use rp_pico::hal::gpio::PullUp;
     use rp_pico::hal::{
-        clocks, gpio, gpio::pin::bank0::Gpio17, gpio::pin::bank0::Gpio25, gpio::pin::Disabled,
+        clocks, gpio, gpio::pin::bank0::Gpio17, gpio::pin::bank0::Gpio25, gpio::pin::Input,
         gpio::pin::PushPullOutput, sio::Sio, watchdog::Watchdog,
     };
     use rp_pico::XOSC_CRYSTAL_FREQ;
@@ -33,7 +40,7 @@ mod app {
     // Shared resources go here
     #[shared]
     struct Shared {
-        // TODO: Add resources
+        // TODO: Add shared resources
     }
 
     // Local resources go here
@@ -41,7 +48,8 @@ mod app {
     struct Local {
         led_state: bool,
         led_pin: gpio::Pin<Gpio25, PushPullOutput>,
-        button_pin: gpio::Pin<Gpio17, Disabled<PullDown>>,
+        //button_pin: gpio::Pin<Gpio17, Disabled<PullDown>>,
+        button_pin: gpio::Pin<Gpio17, Input<PullUp>>,
         // TODO: Use own resources
     }
 
@@ -49,7 +57,7 @@ mod app {
     fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         defmt::info!("init");
 
-        // Setup the clock.
+        // Setup the clock. This is required.
         let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
         let _clocks = clocks::init_clocks_and_plls(
             XOSC_CRYSTAL_FREQ,
@@ -76,7 +84,8 @@ mod app {
         led_pin.set_low().unwrap();
 
         // Setup an interrupt om pin 16 to register button presses
-        let button_pin = pins.gpio17;
+        // This is configured as an input pin so that the value can be read.
+        let button_pin = pins.gpio17.into_pull_up_input();
 
         button_pin.set_interrupt_enabled(gpio::Interrupt::EdgeLow, true); // ??? Does this work?
 
@@ -128,6 +137,11 @@ mod app {
         toggle_task::spawn_after(duration.millis()).unwrap();
     }
 
+    // Service routine when GPIO 17 is pulled low.
+    //
+    // Note this is not a very good implementation if a push button
+    // is being used to pull the pin low as no debounce is included.
+    // As such a lot of interrupts are generated.
     #[task(binds = IO_IRQ_BANK0, local = [button_pin])]
     fn button_irq(ctx: button_irq::Context) {
         defmt::info!("Button pressed");
@@ -135,6 +149,13 @@ mod app {
         ctx.local
             .button_pin
             .clear_interrupt(gpio::Interrupt::EdgeLow);
+
+        // Read from the button
+        if ctx.local.button_pin.is_high().unwrap() {
+            defmt::info!("Button Pin HIGH");
+        } else {
+            defmt::info!("Button Pin LOW");
+        }
 
         // TODO need to add debounce
     }
