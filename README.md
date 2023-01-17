@@ -1,14 +1,17 @@
 # Project template for pico running rtic
 
 
-This template is intended as a starting point for developing rp-pico based application using the [rtic](https://crates.io/crates/cortex-m-rtic) crate. It is based on [this rp2040 template](https://github.com/rp-rs/rp2040-project-template) and [this rtic example](https://github.com/rtic-rs/rtic-examples/blob/master/rtic_v1/rp-pico_local_initilzd_resources/src/main.rs).
+This template is intended as a starting point for developing rp-pico based application using the [cortex-m-rtic](https://crates.io/crates/cortex-m-rtic) crate. It is based on [this rp2040 template](https://github.com/rp-rs/rp2040-project-template) and [this rtic example](https://github.com/rtic-rs/rtic-examples/blob/master/rtic_v1/rp-pico_local_initilzd_resources/src/main.rs).
 
 It does the following:
-- Blinks the rp-pico on-board led
+- Blinks the rp-pico on-board led (GPIO 25) using a timer
+- Processes a interrupt when GPIO 17 is pulled low (e.g with a push button)
 
 It includes all of the `knurling-rs` tooling as showcased in https://github.com/knurling-rs/app-template (`defmt`, `defmt-rtt`, `panic-probe`, `flip-link`) to make development as easy as possible.
 
-`probe-run` is configured as the default runner, so you can start your program as easy as
+# Downloading
+
+`probe-run` is configured as the default runner, so you can start the program with
 ```sh
 cargo run --release
 ```
